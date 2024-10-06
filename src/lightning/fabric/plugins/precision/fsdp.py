@@ -71,7 +71,13 @@ class FSDPPrecision(Precision):
             "16-true": torch.float16,
             "32-true": torch.float32,
         }
-        self._desired_input_dtype = precision_to_type[self.precision]
+        self._desired_dtype = precision_to_type[self.precision]
+
+    @override
+    def convert_module(self, module: Module) -> Module:
+        if "true" in self.precision:
+            return module.to(dtype=self._desired_dtype)
+        return module
 
     @property
     def mixed_precision_config(self) -> "TorchMixedPrecision":
@@ -101,7 +107,7 @@ class FSDPPrecision(Precision):
 
     @override
     def tensor_init_context(self) -> ContextManager:
-        return _DtypeContextManager(self._desired_input_dtype)
+        return _DtypeContextManager(self._desired_dtype)
 
     @override
     def module_init_context(self) -> ContextManager:
@@ -115,7 +121,7 @@ class FSDPPrecision(Precision):
 
     @override
     def convert_input(self, data: Any) -> Any:
-        return apply_to_collection(data, function=_convert_fp_tensor, dtype=Tensor, dst_type=self._desired_input_dtype)
+        return apply_to_collection(data, function=_convert_fp_tensor, dtype=Tensor, dst_type=self._desired_dtype)
 
     @override
     def convert_output(self, data: Any) -> Any:
